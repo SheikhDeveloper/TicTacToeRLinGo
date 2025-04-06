@@ -237,7 +237,7 @@ func (nn *NeuralNetwork) backwardPass(target_probas []float64, lr float64, rewar
 	hiddenDelta := make([]float64, nn.hiddenSize)
 
 	for i := 0; i < nn.outputSize; i++ {
-		outputDelta[i] = (target_probas[i] - nn.outputs[i]) * math.Abs(rewardScale)
+		outputDelta[i] = (nn.outputs[i] - target_probas[i]) * math.Abs(rewardScale)
 	}
 
 	for i := 0; i < nn.hiddenSize; i++ {
@@ -278,11 +278,11 @@ func (nn *NeuralNetwork) learnFromGame(moveHistory []int, numMoves int, nnMovesE
 	}
 
 	if winner == "draw" {
-		reward = 0.3
+		reward = 0.3 // small reward for draw
 	} else if winner == nnSymbol {
-		reward = 1.0
+		reward = 1.0 // big reward for winning
 	} else {
-		reward = -2.0
+		reward = -2.0 // negative reward for losing
 	}
 
 	var gs GameState
@@ -330,8 +330,7 @@ func (nn *NeuralNetwork) learnFromGame(moveHistory []int, numMoves int, nnMovesE
 			}
 		}
 
-		fmt.Println(scaledReward)
-		nn.backwardPass(targetProbas, 0.1, scaledReward)
+		nn.backwardPass(targetProbas, 0.05, scaledReward)
 	}
 }
 
@@ -455,13 +454,9 @@ func (nn NeuralNetwork) trainAgainstRandom(numGames int) {
 			losses++
 		}
 
-		if i + 1 % 10000 == 0 {
-			fmt.Printf("Played %d games. Wins: %.2f, Losses: %.2f, Ties: %.2f\n", playedGames, float64(wins) / float64(playedGames) * 100, 
+		if (i + 1) % 10000 == 0 {
+			fmt.Printf("Played %d games. Wins: %.2f%%, Losses: %.2f%%, Ties: %.2f%%\n", playedGames, float64(wins) / float64(playedGames) * 100, 
 			float64(losses) / float64(playedGames) * 100, float64(ties) / float64(playedGames) * 100)
-			wins = 0
-			losses = 0
-			ties = 0
-			playedGames = 0
 		}
 	}
 
@@ -470,7 +465,7 @@ func (nn NeuralNetwork) trainAgainstRandom(numGames int) {
 
 func main() {
 
-	randomGames := 150000
+	randomGames := 1500000
 
 	nn := initNN(18, 9, 100)
 
