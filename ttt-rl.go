@@ -209,7 +209,7 @@ func getComputerMove(gs *GameState, nn *NeuralNetwork, displayProbas bool) int {
 		}
 	}
 
-	if displayProbas {
+	if displayProbas { // logs purely for debug. Can be removed by setting displayProbas to false
 		fmt.Println(nn.outputs)
 
 		totalProba := 0.0
@@ -359,7 +359,7 @@ func (nn *NeuralNetwork) playGame() {
 			numMoves++
 		} else {
 			fmt.Println("Computer's move:")
-			move := getComputerMove(&gs, nn, true)
+			move := getComputerMove(&gs, nn, true) // setting displayProbas to true logs the probas for debug. Can be removed by setting displayProbas to false
 			gs.board[move] = "O"
 			fmt.Println("Computer placed O in position", move)
 			moveHistory[numMoves] = move
