@@ -7,19 +7,21 @@ import (
 	"strconv"
 )
 
+/* Game state */
 type GameState struct {
-	board [9]string
+	board [9]string // board as an array
 	currentPlayer int // 0 for X(player), 1 for O (computer)
 }
 
+/* Neural network */
 type NeuralNetwork struct {
 	inputSize int
 	outputSize int
 	hiddenSize int
-	weightsIH []float64
-	weightsHO []float64
-	biasesH []float64
-	biasesO []float64
+	weightsIH []float64 // input to hidden weights
+	weightsHO []float64 // hidden to output weights
+	biasesH []float64 // hidden biases
+	biasesO []float64 // output biases
 
 	inputs []float64
 	hidden []float64
@@ -27,6 +29,11 @@ type NeuralNetwork struct {
 	outputs []float64
 }
 
+/* Create new neural network
+ * @param inputSize the size of the input
+ * @param outputSize the size of the output
+ * @param hiddenSize the size of the hidden layer
+ */
 func newNeuralNetwork(inputSize, outputSize, hiddenSize int) *NeuralNetwork {
 	return &NeuralNetwork{
 		inputSize: inputSize,
@@ -43,6 +50,10 @@ func newNeuralNetwork(inputSize, outputSize, hiddenSize int) *NeuralNetwork {
 	}
 }
 
+/* ReLU
+ * @param x the input
+ * @return the output
+ */
 func reLU(x float64) float64 {
 	if x < 0 {
 		return 0
@@ -50,6 +61,10 @@ func reLU(x float64) float64 {
 	return x
 }
 
+/* Derivative of ReLU
+ * @param x the input
+ * @return the derivative
+ */
 func reLUDerivative(x float64) float64 {
 	if x < 0 {
 		return 0
@@ -57,6 +72,11 @@ func reLUDerivative(x float64) float64 {
 	return 1
 }
 
+/* Initialize neural network with random weights
+ * @param inputSize the size of the input
+ * @param outputSize the size of the output
+ * @param hiddenSize the size of the hidden layer
+ */
 func initNN(inputSize, outputSize, hiddenSize int) *NeuralNetwork {
 
 	nn := newNeuralNetwork(inputSize, outputSize, hiddenSize)
@@ -75,6 +95,10 @@ func initNN(inputSize, outputSize, hiddenSize int) *NeuralNetwork {
 	return nn
 }
 
+/* Softmax function
+ * @param input the input logits
+ * @param output the output probabilities
+ */
 func softmax(input, output *[]float64) {
 	maximum := (*input)[0]
 	for _, v := range *input {
@@ -99,6 +123,9 @@ func softmax(input, output *[]float64) {
 	}
 }
 
+/* Forward pass of NN
+ * @param input the input
+ */
 func (nn *NeuralNetwork) forwardPass(input []float64) {
 	// copy input
 	nn.inputs = input
@@ -123,17 +150,28 @@ func (nn *NeuralNetwork) forwardPass(input []float64) {
 	softmax(&nn.rawLogits, &nn.outputs)
 }
 
+/* Init game
+ * @param gs game state
+ */
 func (gs *GameState) initGame() {
 	gs.currentPlayer = 0
 	gs.board = [9]string{"." , "." , "." , "." , "." , "." , "." , "." , "."}
 } 
 
+/* Display board
+ * @param board as an array
+ */
 func displayBoard(board [9]string) {
 	fmt.Println(board[0], board[1], board[2])
 	fmt.Println(board[3], board[4], board[5])
 	fmt.Println(board[6], board[7], board[8])
 }
 
+/* Convert board to inputs
+ * @param gs game state
+ * @param inputs empty container to store inputs
+ * @return inputs
+ */
 func (gs *GameState) boardToInputs(inputs []float64) []float64 {
 	for i := 0; i < 9; i++ {
 		if gs.board[i] == "." {
@@ -150,6 +188,11 @@ func (gs *GameState) boardToInputs(inputs []float64) []float64 {
 	return inputs
 }
 
+/* Check whether the terminating condition is met
+ * @param gs game state
+ * @param winner pointer to string (winner of the game)
+ * @return whether the game is over
+ */
 func (gs *GameState) checkGameOver(winner *string) bool {
 	for i := 0; i < 3; i++ {
 		if gs.board[i*3] != "." && gs.board[i*3] == gs.board[i*3+1] && gs.board[i*3+1] == gs.board[i*3+2] {
@@ -188,6 +231,11 @@ func (gs *GameState) checkGameOver(winner *string) bool {
 	return false
 }
 
+/* Get computer move
+ * @param gs game state
+ * @param nn neural network
+ * @param displayProbas bool. Purely for debug
+ */
 func getComputerMove(gs *GameState, nn *NeuralNetwork, displayProbas bool) int {
 
 	inputs := make([]float64, nn.inputSize)
@@ -224,6 +272,11 @@ func getComputerMove(gs *GameState, nn *NeuralNetwork, displayProbas bool) int {
 	return bestMove
 }
 
+/* Backward pass of NN 
+ * @param target_probas the target probabilities of the game
+ * @param lr the learning rate
+ * @param rewardScale the reward scale
+ */
 func (nn *NeuralNetwork) backwardPass(target_probas []float64, lr float64, rewardScale float64) {
 	outputDelta := make([]float64, nn.outputSize)
 	hiddenDelta := make([]float64, nn.hiddenSize)
@@ -260,6 +313,12 @@ func (nn *NeuralNetwork) backwardPass(target_probas []float64, lr float64, rewar
 	}
 }
 
+/* 
+ * Function for NN to learn from a game
+ * moveHistory is the list of moves played in the game so far
+ * numMoves is the number of moves played in the game so far
+ * nnMovesEven is true if the NN is playing as X, false if it is playing as O
+*/
 func (nn *NeuralNetwork) learnFromGame(moveHistory []int, numMoves int, nnMovesEven bool, winner string) {
 	var reward float64
 	var nnSymbol string
@@ -326,6 +385,11 @@ func (nn *NeuralNetwork) learnFromGame(moveHistory []int, numMoves int, nnMovesE
 	}
 }
 
+/*
+ * Function to play a game against the trained computer
+ * @param nn the trained neural network
+ */
+
 func (nn *NeuralNetwork) playGame() {
 	var gs GameState
 	var winner string
@@ -359,7 +423,7 @@ func (nn *NeuralNetwork) playGame() {
 			numMoves++
 		} else {
 			fmt.Println("Computer's move:")
-			move := getComputerMove(&gs, nn, true) // setting displayProbas to true logs the probas for debug. Can be removed by setting displayProbas to false
+			move := getComputerMove(&gs, nn, false) // setting displayProbas to true logs the probas for debug. Can be removed by setting displayProbas to false
 			gs.board[move] = "O"
 			fmt.Println("Computer placed O in position", move)
 			moveHistory[numMoves] = move
@@ -381,6 +445,13 @@ func (nn *NeuralNetwork) playGame() {
 	nn.learnFromGame(moveHistory, numMoves, true, winner)
 }
 
+/* 
+    Make a random move
+	Used for training against random games
+	@param gs game state
+	@return move (place on board)
+*/
+
 func (gs *GameState) getRandomMove() int {
 	for {
 		move := rand.Intn(9)
@@ -390,6 +461,13 @@ func (gs *GameState) getRandomMove() int {
 		return move
 	}
 }
+
+/* 
+    Play a random game against the computer
+	@param moveHistory container to store move history
+	@param numMoves number of moves played
+	@return winner
+*/
 
 func (nn NeuralNetwork) playRandomGame(moveHistory []int, numMoves *int) string {
 	var gs GameState
@@ -424,6 +502,10 @@ func (nn NeuralNetwork) playRandomGame(moveHistory []int, numMoves *int) string 
 	return winner
 }
 
+/*
+	Training against random games
+	@param numGames number of games to play
+*/
 func (nn NeuralNetwork) trainAgainstRandom(numGames int) {
 	moveHistory := make([]int, 9)
 	numMoves := 0
@@ -447,7 +529,7 @@ func (nn NeuralNetwork) trainAgainstRandom(numGames int) {
 		}
 
 		if (i + 1) % 10000 == 0 {
-			fmt.Printf("Played %d games. Wins: %.2f%%, Losses: %.2f%%, Ties: %.2f%%\n", playedGames, float64(wins) / float64(playedGames) * 100, 
+			fmt.Printf("Played %d games. In the last 10000: Wins: %.2f%%, Losses: %.2f%%, Ties: %.2f%%\n", i + 1, float64(wins) / float64(playedGames) * 100, 
 			float64(losses) / float64(playedGames) * 100, float64(ties) / float64(playedGames) * 100)
 			playedGames = 0
 			wins = 0
