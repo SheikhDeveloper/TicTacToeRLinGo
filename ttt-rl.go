@@ -43,13 +43,6 @@ func newNeuralNetwork(inputSize, outputSize, hiddenSize int) *NeuralNetwork {
 	}
 }
 
-func (nn *NeuralNetwork) setWeights(weightsIH, weightsHO, biasesH, biasesO []float64) {
-	nn.weightsIH = weightsIH
-	nn.weightsHO = weightsHO
-	nn.biasesH = biasesH
-	nn.biasesO = biasesO
-}
-
 func reLU(x float64) float64 {
 	if x < 0 {
 		return 0
@@ -83,14 +76,14 @@ func initNN(inputSize, outputSize, hiddenSize int) *NeuralNetwork {
 }
 
 func softmax(input, output *[]float64) {
-	var maximum float64
-	maximum = (*input)[0]
+	maximum := (*input)[0]
 	for _, v := range *input {
 		if v > maximum {
 			maximum = v
 		}
 	}
 	var sum float64
+	sum = 0
 	for i, _ := range *output {
 		(*output)[i] = math.Exp((*input)[i] - maximum)
 		sum += (*output)[i]
@@ -107,23 +100,24 @@ func softmax(input, output *[]float64) {
 }
 
 func (nn *NeuralNetwork) forwardPass(input []float64) {
-	// input
+	// copy input
 	nn.inputs = input
-	// hidden
+
+	// Input to hidden
 	for i := 0; i < nn.hiddenSize; i++ {
-		var sum float64
+		sum := nn.biasesH[i]
 		for j := 0; j < nn.inputSize; j++ {
-			sum += nn.inputs[j] * nn.weightsIH[i*nn.inputSize+j]
+			sum += nn.inputs[j] * nn.weightsIH[j*nn.hiddenSize+i]
 		}
-		nn.hidden[i] = reLU(sum + nn.biasesH[i])
+		nn.hidden[i] = reLU(sum)
 	}
-	// output
+
+	// Hidden to output
 	for i := 0; i < nn.outputSize; i++ {
-		var sum float64
+		nn.rawLogits[i] = nn.biasesO[i]
 		for j := 0; j < nn.hiddenSize; j++ {
-			sum += nn.hidden[j] * nn.weightsHO[i*nn.hiddenSize+j]
+			nn.rawLogits[i] += nn.hidden[j] * nn.weightsHO[j*nn.outputSize+i]
 		}
-		nn.rawLogits[i] = reLU(sum + nn.biasesO[i])
 	}
 
 	softmax(&nn.rawLogits, &nn.outputs)
@@ -209,11 +203,9 @@ func getComputerMove(gs *GameState, nn *NeuralNetwork, displayProbas bool) int {
 			maxProba = proba
 		}
 
-		if gs.board[i] == "." {
-			if bestMove == -1 || proba > bestLegalProba {
+		if gs.board[i] == "." && (bestMove == -1 || proba > bestLegalProba) {
 				bestMove = i
 				bestLegalProba = proba
-			}
 		}
 	}
 
@@ -289,7 +281,7 @@ func (nn *NeuralNetwork) learnFromGame(moveHistory []int, numMoves int, nnMovesE
 	targetProbas := make([]float64, nn.outputSize)
 
 	for moveIdx := 0; moveIdx < numMoves; moveIdx++ {
-		if (nnMovesEven && moveIdx%2 == 0) || (!nnMovesEven && moveIdx%2 == 1) {
+		if (nnMovesEven && (moveIdx % 2) == 0) || (!nnMovesEven && (moveIdx % 2) == 1) {
 			continue
 		}
 
@@ -318,7 +310,7 @@ func (nn *NeuralNetwork) learnFromGame(moveHistory []int, numMoves int, nnMovesE
 			targetProbas[i] = 0
 		}
 
-		if scaledReward > 0 {
+		if scaledReward >= 0 {
 			targetProbas[move] = 1.0
 		} else {
 			validMovesLeft := 9 - moveIdx - 1
@@ -330,7 +322,7 @@ func (nn *NeuralNetwork) learnFromGame(moveHistory []int, numMoves int, nnMovesE
 			}
 		}
 
-		nn.backwardPass(targetProbas, 0.05, scaledReward)
+		nn.backwardPass(targetProbas, 0.01, scaledReward)
 	}
 }
 
@@ -338,14 +330,14 @@ func (nn *NeuralNetwork) playGame() {
 	var gs GameState
 	var winner string
 	moveHistory := make([]int, 9)
-	var numMoves int
+	numMoves := 0
 
 	gs.initGame()
 
 	fmt.Println("Welcome to Tic Tac Toe! You are X, the computer is O.")
 	fmt.Println("Enter positions as numbers from 0 to 8 (see picture).")
 
-	for gameOver := gs.checkGameOver(&winner); !gameOver; gameOver = gs.checkGameOver(&winner) {
+	for !gs.checkGameOver(&winner) {
 		displayBoard(gs.board)
 
 		if gs.currentPlayer == 0 {
@@ -406,7 +398,7 @@ func (nn NeuralNetwork) playRandomGame(moveHistory []int, numMoves *int) string 
 
 	gs.initGame()
 
-	for ; !gs.checkGameOver(&winner); {
+	for !gs.checkGameOver(&winner) {
 		var move int
 
 		if gs.currentPlayer == 0 {
@@ -457,6 +449,10 @@ func (nn NeuralNetwork) trainAgainstRandom(numGames int) {
 		if (i + 1) % 10000 == 0 {
 			fmt.Printf("Played %d games. Wins: %.2f%%, Losses: %.2f%%, Ties: %.2f%%\n", playedGames, float64(wins) / float64(playedGames) * 100, 
 			float64(losses) / float64(playedGames) * 100, float64(ties) / float64(playedGames) * 100)
+			playedGames = 0
+			wins = 0
+			losses = 0
+			ties = 0
 		}
 	}
 
@@ -465,9 +461,9 @@ func (nn NeuralNetwork) trainAgainstRandom(numGames int) {
 
 func main() {
 
-	randomGames := 1500000
+	randomGames := 150000
 
-	nn := initNN(18, 9, 100)
+	nn := initNN(18, 9, 512)
 
 	if randomGames > 0 { nn.trainAgainstRandom(randomGames) }
 
