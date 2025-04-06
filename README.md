@@ -1,4 +1,4 @@
-# Tic-tac-toe NN with RL fully implemented in Golang
+# Tic-tac-toe game with NN using RL fully implemented in Golang
 
 [![Go](https://img.shields.io/badge/Go-1.14-green.svg)](https://golang.org/)
 
