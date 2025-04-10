@@ -162,9 +162,9 @@ func (gs *GameState) initGame() {
  * @param board as an array
  */
 func displayBoard(board [9]string) {
-	fmt.Println(board[0], board[1], board[2])
-	fmt.Println(board[3], board[4], board[5])
-	fmt.Println(board[6], board[7], board[8])
+	fmt.Println(board[0], board[1], board[2], " 012")
+	fmt.Println(board[3], board[4], board[5], " 345")
+	fmt.Println(board[6], board[7], board[8], " 678")
 }
 
 /* Convert board to inputs
